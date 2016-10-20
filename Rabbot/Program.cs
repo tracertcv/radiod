@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Discord;
 
 namespace Rabbot
 {
@@ -10,6 +11,7 @@ namespace Rabbot
     {
         static void Main(string[] args)
         {
+            myBot bot = new myBot();
         }
     }
 }
