@@ -9,6 +9,7 @@ using Discord.Audio;
 using Discord.Commands;
 using Discord.Modules;
 using Discord.Net;
+using Rabbot.Types;
 
 using NAudio;
 using NAudio.Wave;
@@ -30,9 +31,30 @@ namespace Rabbot
         // Bool, when playing a song, set it to true.
         private static bool playingSong = false;
 
+        //Token/config file
+        private Configuration config;
+
 
         public myBot()
         {
+
+            const string configFile = "configuration.json";
+
+            try
+            {
+                config = Configuration.LoadFile(configFile);           // Load the configuration from a saved file.
+            }
+            catch
+            {
+                config = new Configuration();                          // Create a new configuration file if it doesn't exist.
+
+                Console.WriteLine("The example bot's configuration file has been created. Please enter a valid token.");
+                Console.Write("Token: ");
+
+                config.Token = Console.ReadLine();                     // Read the user's token from the console.
+                config.SaveFile(configFile);
+            }
+
             //Set log levels
             discord = new DiscordClient(x =>
             {
@@ -52,7 +74,7 @@ namespace Rabbot
             //Set command prefix
             discord.UsingCommands(x =>
             {
-                x.PrefixChar = '!';
+                x.PrefixChar = config.Prefix;
                 x.AllowMentionPrefix = true;
             });
 
@@ -66,7 +88,7 @@ namespace Rabbot
             //Actual execute for bot instance TODO use better/cleaner login.
             discord.ExecuteAndWait(async () =>
             {
-                await discord.Connect("", TokenType.Bot); //TOKEN GO HERE
+                await discord.Connect(config.Token, TokenType.Bot); //TOKEN GO HERE
             });
         }
         
