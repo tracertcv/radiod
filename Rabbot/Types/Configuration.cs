@@ -14,10 +14,13 @@ namespace Rabbot.Types
 
         public string Token { get; set; }
 
+        public List<ulong> Owners { get; set; }
+
         public Configuration()
         {
             Prefix = '!';
             Token = "";
+            Owners = new List<ulong>();
         }
 
         public void SaveFile(string loc)
