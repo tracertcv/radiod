@@ -25,7 +25,7 @@ namespace Rabbot.Modules
 
             manager.CreateCommands("", cmd =>                           // Create commands with the manager
             {
-                cmd.CreateCommand("say")                                // The command text is `!say {string}`
+                cmd.CreateCommand("say")                                // Usage -> `!say {string}`
                     .Description("Make the bot say something")          
                     .Alias("s")                                         
                     .MinPermissions((int)Permissions.ServerAdmin)       
@@ -48,18 +48,18 @@ namespace Rabbot.Modules
 
                 cmd.CreateGroup("set", (b) =>                           // Create a group of sub-commands `!set`
                 {
-                    b.CreateCommand("nick")                             // The command text is `!set nick {name}`
+                    b.CreateCommand("nick")                             // Usage -> `!set nick {name}`
                         .Description("Change your nickname.")
                         .Parameter("name", ParameterType.Unparsed)
                         .Do(async (e) =>
                         {
                             string name = e.Args[0];                    // Copy the first parameter into a variable
-                            var user = e.User;                          // Get the object of the user that executed the command.
+                            var user = e.User;                          
                             await user.Edit(nickname: name);            // Edit the user's nickname.
-                            await e.Channel.SendMessage(                // Let the user know the command executed successfully.
-                            $"{user.Mention} I changed your name to **{name}**");
+                            await e.Channel.SendMessage($"{user.Mention} I changed your name to **{name}**");
                         });
-                    b.CreateCommand("botnick")                          // The command text `!set botnick <name>`
+
+                    b.CreateCommand("botnick")                          // Usage -> `!set botnick {name}`
                         .Description("Change the bot's nickname.")
                         .MinPermissions((int)Permissions.ServerOwner)   // Limit this command to server owner
                         .Parameter("name", ParameterType.Unparsed)
@@ -71,6 +71,7 @@ namespace Rabbot.Modules
                             await e.Channel.SendMessage(                // Let the user know the command executed successfully.
                             $"I changed my name to **{name}**");
                         });
+                    //b.CreateCommand("")
                 });
             });
         }

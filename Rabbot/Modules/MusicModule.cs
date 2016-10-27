@@ -29,6 +29,7 @@ namespace Rabbot.Modules
 
         // Bool, when playing a song, set it to true.
         private static bool playingSong = false;
+        private static bool paused = false;
 
         void IModule.Install(ModuleManager manager)
         {
@@ -45,27 +46,59 @@ namespace Rabbot.Modules
 
             manager.CreateCommands("", cmd =>
             {
-                cmd.CreateCommand("play")                           // The command text is `!play {file}`.
+                cmd.CreateCommand("play")                               // The command text is `!play {file}`.
                     .Description("Play a given .mp3")               
                     .Parameter("filename", ParameterType.Required)
                     .Do(async (e) =>
                     {
                         string filename = e.GetArg("filename");
-                        if (File.Exists(filename))                  // Make sure the file is real.
+                        if (!playingSong)                               // If we're NOT already playing a song.
                         {
-                            playingSong = true;                     // Set our playing bool.
-                            await e.Channel.SendMessage("Now playing " + e.GetArg("filename"));
-                            await SendAudio(e.GetArg("filename"), e.User.VoiceChannel, _client);
+                            if (File.Exists(filename))                  // Make sure the file is real.
+                            {
+                                playingSong = true;                     // Set our playing bool.
+                                await e.Channel.SendMessage("Now playing " + e.GetArg("filename"));
+                                await SendAudio(e.GetArg("filename"), e.User.VoiceChannel, _client);
+                            }
+                            else { await e.Channel.SendMessage("Unable to find file!"); }
                         }
-                        else
-                        { await e.Channel.SendMessage("Unable to find file!"); }
+                        else { await e.Channel.SendMessage("Current song still playing."); }
                     });
 
                 cmd.CreateCommand("stop")
+                    .Description("Stop current song")
+                    .Alias("s")
                     .Do(async (e) =>
                     {
-                        playingSong = false;
-                        await e.Channel.SendMessage("Stopping!");
+                        if (playingSong)
+                        {
+                            playingSong = false;
+                            await e.Channel.SendMessage("Stopping!");
+                        }
+                    });
+
+                cmd.CreateCommand("pause")
+                    .Description("Pause current song")
+                    .Alias("p")
+                    .Do(async (e) =>
+                    {
+                        if (playingSong && !paused)
+                        {
+                            paused = true;
+                            await e.Channel.SendMessage("Paused!");
+                        }
+                    });
+
+                cmd.CreateCommand("resume")
+                    .Description("Resume current song")
+                    .Alias("r")
+                    .Do(async (e) =>
+                    {
+                        if (playingSong && paused)
+                        {
+                            paused = false;
+                            await e.Channel.SendMessage("Resuming!");
+                        }
                     });
             });
         }
@@ -86,7 +119,6 @@ namespace Rabbot.Modules
                 int byteCount;
 
                 while ((byteCount = resampler.Read(buffer, 0, blockSize)) > 0 && playingSong) // Read audio into our buffer, and keep a loop open while data is present, as long as we are playing a song.
-
                 {
                     if (byteCount < blockSize)
                     {
@@ -95,6 +127,8 @@ namespace Rabbot.Modules
                             buffer[i] = 0;
                     }
                     _voiceClient.Send(buffer, 0, blockSize); // Send the buffer to Discord
+                    while (paused) { System.Threading.Thread.Sleep(500); } // SLEEP MY CHILD
+
                 }
                 await _voiceClient.Disconnect();
             }
