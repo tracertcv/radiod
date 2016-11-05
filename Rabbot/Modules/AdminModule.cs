@@ -71,7 +71,6 @@ namespace Rabbot.Modules
                             await e.Channel.SendMessage(                // Let the user know the command executed successfully.
                             $"I changed my name to **{name}**");
                         });
-                    //b.CreateCommand("")
                 });
             });
         }
