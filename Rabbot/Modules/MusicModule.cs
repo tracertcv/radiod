@@ -27,7 +27,7 @@ namespace Rabbot.Modules
         private static IAudioClient _voiceClient { get; set; } = null;
 
         //Audio Stuff
-        private AudioHost host;
+        private AudioHost current = new AudioHost();
         private static bool playingSong = false;
 
 
@@ -35,7 +35,6 @@ namespace Rabbot.Modules
         {
             _manager = manager;
             _client = manager.Client;
-            host = new AudioHost(_client);
 
             //Populate the audio service
             var audio = _client.AddService<AudioService>(new AudioService(new AudioServiceConfigBuilder()
@@ -47,7 +46,7 @@ namespace Rabbot.Modules
 
             manager.CreateCommands("", cmd =>
             {
-                cmd.CreateCommand("addMP3")                               // The command text is `!play {file}`.
+                cmd.CreateCommand("play")                               // The command text is `!play {file}`.
                     .Description("Play a given .mp3")
                     .Parameter("filename", ParameterType.Required)
                     .Do(async (e) =>
@@ -83,22 +82,22 @@ namespace Rabbot.Modules
                                     }
                                 }
                                 store.Position = 0;
-                                AudioStream song = new AudioStream(store);
-                                await host.SendAudio(song, e.User.VoiceChannel);
-                                //host.addQueue(store);
+                                await current.SendAudio(store, e.User.VoiceChannel, _client);
                             }
                             else { await e.Channel.SendMessage("Unable to find file!"); }
                         }
                         else { await e.Channel.SendMessage("Current song still playing."); }
                     });
+
                 cmd.CreateCommand("stop")
                     .Description("Stop current song")
                     .Alias("s")
                     .Do(async (e) =>
                     {
-                        if (host.current != null)
+                        if (playingSong)
                         {
-                            host.stop = true;
+                            current.stop = true;
+                            playingSong = false;
                             await e.Channel.SendMessage("Stopping!");
                         }
                     });
@@ -108,9 +107,9 @@ namespace Rabbot.Modules
                     .Alias("p")
                     .Do(async (e) =>
                     {
-                        if ((host.current != null) && !host.pause)
+                        if (playingSong && !current.pause)
                         {
-                            host.pause = true;
+                            current.pause = true;
                             await e.Channel.SendMessage("Paused!");
                         }
                     });
@@ -120,18 +119,11 @@ namespace Rabbot.Modules
                     .Alias("r")
                     .Do(async (e) =>
                     {
-                        if ((host.current != null) && host.pause)
+                        if (playingSong && current.pause)
                         {
-                            host.pause = false;
+                            current.pause = false;
                             await e.Channel.SendMessage("Resuming!");
                         }
-                    });
-                cmd.CreateCommand("joinVoice")
-                    .Description("Join the Voice Channel of the requesting user")
-                    .Alias("jv")
-                    .Do(async (e) =>
-                    {
-                        _voiceClient = await _client.GetService<AudioService>().Join(e.User.VoiceChannel);
                     });
             });
         }
