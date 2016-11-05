@@ -114,6 +114,5 @@ namespace Rabbot
         {
             Console.WriteLine(e.Message);
         }
-
     }
 }

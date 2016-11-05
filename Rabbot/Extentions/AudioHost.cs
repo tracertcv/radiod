@@ -11,24 +11,30 @@ using Discord.Commands.Permissions.Levels;
 using Discord.Modules;
 using Discord.Audio;
 
-using NAudio;
-using NAudio.Wave;
-using NAudio.CoreAudioApi;
-
 namespace Rabbot.Extentions
 {
     class AudioStream
     {
-
-        public bool stop { get; set; } = false;
-        public bool pause { get; set; } = false;
-
         public string _name { get; set; } = "";
-        public byte[] _buffer;
+        public MemoryStream _buffer;
+        public User _addedBy;
 
-        AudioStream(byte[] buffer)
+        public AudioStream(MemoryStream buffer)
         {
             _buffer = buffer;
+        }
+
+        public AudioStream(MemoryStream buffer, string name)
+        {
+            _buffer = buffer;
+            _name = name;
+        }
+
+        public AudioStream(MemoryStream buffer, string name, User addedBy)
+        {
+            _buffer = buffer;
+            _name = name;
+            _addedBy = addedBy;
         }
 
     }
@@ -36,33 +42,73 @@ namespace Rabbot.Extentions
     class AudioHost
     {
         //Broke this into it's own service so modules can access audio streaming independently.
-        private IAudioClient _voiceClient { get; set; } = null;
+        private DiscordClient _client;
+        private IAudioClient _voiceClient = null;
+        public AudioStream current;
 
         //Set if we're paused, stopped, or in use by something.
-        public bool inUse { get; set; } = false;
         public bool stop { get; set; } = false;
         public bool pause { get; set; } = false;
 
-        
-        public string name { get; set; } = "";
-        
-        public AudioHost() { }
+        List<AudioStream> queue = new List<AudioStream>();
 
-        public async Task SendAudio(MemoryStream _store, Channel voiceChannel, DiscordClient client)
+        public AudioHost(DiscordClient client)
         {
-            _voiceClient = await client.GetService<AudioService>().Join(voiceChannel);
+            _client = client;
+        }
+        
+        public AudioStream addQueue(MemoryStream _buffer)
+        {
+            AudioStream song = new AudioStream(_buffer);
+            queue.Add(song);
+            return song;
+        }
 
-            MemoryStream store = _store;
-            int blockSize = 1920 * client.GetService<AudioService>()?.Config?.Channels ?? 3840;
+        public void removeQueue(AudioStream _song)
+        {
+            if (current != _song)
+            {
+                try { queue.Remove(_song); }
+                catch (Exception e) { throw; }
+            }
+            else
+            {
+                stop = true;
+                try { queue.Remove(_song); }
+                catch (Exception e) { throw; }
+            }
+        }
+
+        public async Task advanceQueue()
+        {
+            AudioStream _next = queue[queue.IndexOf(current) + 1];
+            stop = true;
+            //await SendAudio(_next);
+        }
+
+        public void clearQueue()
+        {
+            stop = true;
+            queue.Clear();
+        }
+
+        public async Task SendAudio(AudioStream store, Channel e)
+        {
+            MemoryStream _store = store._buffer;
+
+            _voiceClient = await _client.GetService<AudioService>().Join(e);
+
+            int blockSize = 1920 * _client.GetService<AudioService>()?.Config?.Channels ?? 3840;
             byte[] buffer = new byte[blockSize];
             int byteCount;
-            inUse = true;
-            while ((byteCount = store.Read(buffer, 0, blockSize)) > 0 && !stop) // Read audio into our buffer, and keep a loop open while data is present, as long as we are playing.
+
+            current = store;
+            while ((byteCount = _store.Read(buffer, 0, blockSize)) > 0 && !stop) // Read audio into our buffer, and keep a loop open while data is present, as long as we are playing.
             {
                 _voiceClient.Send(buffer, 0, blockSize); // Send the buffer to Discord
                 while (pause) { System.Threading.Thread.Sleep(500); } // SLEEP MY CHILD
             }
-            inUse = false;
+            current = null;
             await _voiceClient.Disconnect();
         }
     }
