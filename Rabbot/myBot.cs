@@ -36,6 +36,7 @@ namespace Rabbot
             {
                 config = Configuration.LoadFile(configFile);           // Load the configuration from a saved file.
             }
+
             catch
             {
                 config = new Configuration();                          // Create a new configuration file if it doesn't exist.

@@ -18,6 +18,8 @@ namespace Rabbot.Modules
         private ModuleManager _manager;
         private DiscordClient _client;
 
+        public string test = "hello";
+
         void IModule.Install(ModuleManager manager)
         {
             _manager = manager;
