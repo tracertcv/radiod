@@ -27,7 +27,8 @@ namespace Rabbot.Modules
         private static IAudioClient _voiceClient { get; set; } = null;
 
         //Audio Stuff
-        private AudioHost current = new AudioHost();
+        private AudioHost current;
+        private AudioStream song;
         private static bool playingSong = false;
 
 
@@ -35,6 +36,8 @@ namespace Rabbot.Modules
         {
             _manager = manager;
             _client = manager.Client;
+
+            current = new AudioHost(_client);
 
             //Populate the audio service
             var audio = _client.AddService<AudioService>(new AudioService(new AudioServiceConfigBuilder()
@@ -82,48 +85,12 @@ namespace Rabbot.Modules
                                     }
                                 }
                                 store.Position = 0;
-                                await current.SendAudio(store, e.User.VoiceChannel, _client);
+                                song = current.addQueue(store);
+                                await current.SendAudio(song, e.User.VoiceChannel, _client);
                             }
                             else { await e.Channel.SendMessage("Unable to find file!"); }
                         }
                         else { await e.Channel.SendMessage("Current song still playing."); }
-                    });
-
-                cmd.CreateCommand("stop")
-                    .Description("Stop current song")
-                    .Alias("s")
-                    .Do(async (e) =>
-                    {
-                        if (playingSong)
-                        {
-                            current.stop = true;
-                            playingSong = false;
-                            await e.Channel.SendMessage("Stopping!");
-                        }
-                    });
-
-                cmd.CreateCommand("pause")
-                    .Description("Pause current song")
-                    .Alias("p")
-                    .Do(async (e) =>
-                    {
-                        if (playingSong && !current.pause)
-                        {
-                            current.pause = true;
-                            await e.Channel.SendMessage("Paused!");
-                        }
-                    });
-
-                cmd.CreateCommand("resume")
-                    .Description("Resume current song")
-                    .Alias("r")
-                    .Do(async (e) =>
-                    {
-                        if (playingSong && current.pause)
-                        {
-                            current.pause = false;
-                            await e.Channel.SendMessage("Resuming!");
-                        }
                     });
             });
         }
