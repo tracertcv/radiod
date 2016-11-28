@@ -15,8 +15,6 @@ using Discord.Commands.Permissions.Levels;
 using Rabbot.Modules;
 using Rabbot.Types;
 
-
-
 namespace Rabbot
 {
     class myBot
@@ -52,7 +50,7 @@ namespace Rabbot
                 config.SaveFile(configFile);
             }
 
-            
+
             discord = new DiscordClient(x =>                           //Set log levels
             {
                 x.LogLevel = LogSeverity.Verbose;
@@ -65,10 +63,10 @@ namespace Rabbot
             })
             .UsingPermissionLevels((u, c) => (int)GetPermission(u, c))
             .UsingModules();
-
             //Register our modules
             discord.AddModule<AdminModule>("Admin", ModuleFilter.None);
-            discord.AddModule<MusicModule>("Music", ModuleFilter.None);
+            discord.AddModule<AudioController>("Audio", ModuleFilter.None);
+            discord.AddModule<PandoraModule>("Pandora", ModuleFilter.None);
 
             discord.ExecuteAndWait(async () =>                         //Log in to Discord with token as a bot.
             {
@@ -95,8 +93,8 @@ namespace Rabbot
             if (config.Owners.Contains(user.Id))               // IRULEU.
                 return Permissions.BotOwner;
 
-            if (!channel.IsPrivate)                             // NO WHISPERS.
-            {
+            //if (!channel.IsPrivate)                             // NO WHISPERS.
+            //{
                 if (user.GetPermissions(channel).ManageChannel) // WHAT'S A MOB TO A KING.
                     return Permissions.ChannelAdmin;
 
@@ -106,7 +104,7 @@ namespace Rabbot
                 if (user == channel.Server.Owner)               // WHAT'S A GOD TO A NON BELIEVER.
                     return Permissions.ServerOwner;
 
-            }
+            //}
 
             return Permissions.User;                            // HUMAN BEINGS IN A MOB.
         }
