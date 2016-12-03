@@ -11,24 +11,10 @@ using Discord.Commands.Permissions.Levels;
 using Discord.Modules;
 using Discord.Audio;
 
+using Rabbot.Types;
+
 namespace Rabbot.Extentions
-{
-    class AudioStream
-    {
-
-        public bool stop { get; set; } = false;
-        public bool pause { get; set; } = false;
-
-        public string _name { get; set; } = "";
-        public MemoryStream _buffer;
-
-        public AudioStream(MemoryStream buffer)
-        {
-            _buffer = buffer;
-        }
-
-    }
-
+{    
     class AudioHost
     {
         //Broke this into it's own service so modules can access audio streaming independently.
@@ -38,9 +24,13 @@ namespace Rabbot.Extentions
         public List<AudioStream> queue;
         public AudioStream playing { get; set; } = null;
 
+        private Dictionary<string, AudioStream> moduleStreams;
+
         public AudioHost(DiscordClient client)
         {
             queue = new List<AudioStream>();
+
+            moduleStreams = new Dictionary<string, AudioStream>();
 
             _client = client;
             CommandService cmd = _client.GetService<CommandService>();
@@ -111,8 +101,19 @@ namespace Rabbot.Extentions
                 {
                     if (_voiceClient.Channel != null)
                     {
-                        _voiceClient = await client.GetService<AudioService>().Join(e.User.VoiceChannel);
-                        await e.Channel.SendMessage("Moving to " + e.User.VoiceChannel.Name);
+                        try
+                        {
+                            Console.WriteLine("foo");
+                            Console.WriteLine(client.GetService<AudioService>().ToString());
+                            _voiceClient = await client.GetService<AudioService>().Join(e.User.VoiceChannel);
+                            await e.Channel.SendMessage("Moving to " + e.User.VoiceChannel.Name);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.GetType().ToString());
+                            Console.WriteLine(ex.Message);
+                            Console.WriteLine(ex.StackTrace);
+                        }
                     }
                 });
         }

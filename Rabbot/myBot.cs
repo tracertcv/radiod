@@ -63,10 +63,12 @@ namespace Rabbot
             })
             .UsingPermissionLevels((u, c) => (int)GetPermission(u, c))
             .UsingModules();
+
             //Register our modules
             discord.AddModule<AdminModule>("Admin", ModuleFilter.None);
             discord.AddModule<AudioController>("Audio", ModuleFilter.None);
             discord.AddModule<PandoraModule>("Pandora", ModuleFilter.None);
+            mycommands();
 
             discord.ExecuteAndWait(async () =>                         //Log in to Discord with token as a bot.
             {
@@ -93,8 +95,8 @@ namespace Rabbot
             if (config.Owners.Contains(user.Id))               // IRULEU.
                 return Permissions.BotOwner;
 
-            //if (!channel.IsPrivate)                             // NO WHISPERS.
-            //{
+            if (!channel.IsPrivate)                             // NO WHISPERS.
+            {
                 if (user.GetPermissions(channel).ManageChannel) // WHAT'S A MOB TO A KING.
                     return Permissions.ChannelAdmin;
 
@@ -104,7 +106,7 @@ namespace Rabbot
                 if (user == channel.Server.Owner)               // WHAT'S A GOD TO A NON BELIEVER.
                     return Permissions.ServerOwner;
 
-            //}
+            }
 
             return Permissions.User;                            // HUMAN BEINGS IN A MOB.
         }
@@ -112,6 +114,26 @@ namespace Rabbot
         private void Log(object sender, LogMessageEventArgs e)
         {
             Console.WriteLine(e.Message);
+        }
+
+        private void mycommands()
+        {
+            CommandService cmd = discord.GetService<CommandService>();
+            cmd.CreateCommand("me")
+                .Description("Find out what the bot knows about you.")
+                .Do(async (e) =>
+                {
+                    try
+                    {
+                        User user = e.User;
+                        await user.SendMessage("Your name is " + user.Name + "\nYour server is " + user.Server.Name + "\nYour channels are " + user.Channels.ToArray() + "\nYour voice channel is ");
+                    }catch(Exception ex)
+                    {
+                        Console.WriteLine(ex.GetType().ToString());
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine(ex.StackTrace);
+                    }
+                });
         }
 
     }

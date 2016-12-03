@@ -24,7 +24,7 @@ namespace Rabbot
         //Data structures for managing registered module queues
         private List<IAudioModule> registeredModules;
         private Dictionary<string, List<AudioStream>> _streams;
-
+        private Thread audioThread;
 
         //Things we need for the discord API
         private DiscordClient discordBaseClient;
@@ -41,7 +41,7 @@ namespace Rabbot
         public event EventHandler AudioEndOfStream;
 
         //Register with discord base API
-        public void Install(ModuleManager manager)
+        void IModule.Install(ModuleManager manager)
         {
             discordModuleManager = manager;
             discordBaseClient = manager.Client;
@@ -102,31 +102,19 @@ namespace Rabbot
 
         private async Task unpause()
         {
-            this.paused = true;
+            this.paused = false;
             AudioUnpaused(this, new EventArgs());
         }
 
-        private async Task play()
+        private void play()
         {
-            
             if (!playing)
             {
                 AudioStarted(this, new EventArgs());
                 playing = true;
                 paused = false;
-                while (playing)
-                {
-                    try
-                    {
-                        await AudioLoop();
-                        if (!hasData(currentStream)) { Thread.Sleep(500); }
-                    }catch(Exception ex)
-                    {
-                        Log(ex.GetType().ToString());
-                        Log(ex.Message);
-                        Log(ex.StackTrace);
-                    }
-                }
+                audioThread = new Thread(new ThreadStart(SendAudio));
+                audioThread.Start();
             }
             
         }
@@ -164,7 +152,7 @@ namespace Rabbot
                 .Alias("pl")
                 .Do(async (e) =>
                 {
-                    await play();
+                    play();
                     await e.User.SendMessage("Playback started.");
                 });
             cmd.CreateCommand("stop")
@@ -208,21 +196,9 @@ namespace Rabbot
                 .Alias("mv")
                 .Do(async (e) =>
                 {
-                    try
-                    {
-                        Log(e.User.Name);
-                        Log(e.User.VoiceChannel?.Name ?? "null");
-                        Log(e.User.Channels.ToArray()[0].Name);
-                        Log(discordBaseClient.GetService<AudioService>().GetType().ToString());
-                        discordAudioClient = await discordBaseClient.GetService<AudioService>().Join(e.User.Channels.ToArray()[0]);//e.User.VoiceChannel);
-                        discordVoiceChannel = discordAudioClient.Channel;
-                        await e.User.SendMessage("Moving to " + e.User.Channels.ToArray()[0]);
-                    }catch(Exception ex)
-                    {
-                        Log(ex.GetType().ToString());
-                        Log(ex.Message);
-                        Log(ex.StackTrace);
-                    }
+                    discordAudioClient = await discordBaseClient.GetService<AudioService>().Join(e.User.VoiceChannel);//e.User.VoiceChannel);
+                    discordVoiceChannel = discordAudioClient.Channel;
+                    await e.User.SendMessage("Moving to " + e.User.VoiceChannel);
                 });
             cmd.CreateCommand("list-treams")
                 .Description("Lists all available streams.")
@@ -257,48 +233,62 @@ namespace Rabbot
 
         }
 
-        private async Task AudioLoop()
+        private void AudioLoop()
+        {
+            while (playing)
+            {
+                SendAudio();
+                if (!hasData(currentStream)) { Thread.Sleep(500); }
+            }
+            audioThread.Abort();
+        }
+
+        private void SendAudio()
         {
             MemoryStream _buffer = new MemoryStream();
-            Console.WriteLine("foo");
-            while (hasData(currentStream))
+            while (hasData(currentStream) && playing)
             {
-                Console.WriteLine("bar");
-
-                while (paused)
-                {
-                    Console.WriteLine("baz");
-                    discordBaseClient.SetGame("Paused");
-                    Thread.Sleep(500);
-                }
+                string songName;
                 lock (_streams[currentStream])
                 {
                     _buffer = _streams[currentStream].First().Buffer;
-                    discordBaseClient.SetGame(_streams[currentStream].First().Meta);
+                    songName = _streams[currentStream].First().Meta;
+                    discordBaseClient.SetGame(songName);
                     _streams[currentStream].RemoveAt(0);
+
                 }
                 if (discordAudioClient == null)
                 {
-                    discordAudioClient = await discordAudioService.Join(discordVoiceChannel);
+                    //discordAudioClient = await discordAudioService.Join(discordVoiceChannel);
                 }
                 int blockSize = 1920 * discordAudioService?.Config?.Channels ?? 3840;
                 byte[] buffer = new byte[blockSize];
                 int byteCount;
                 while ((byteCount = _buffer.Read(buffer, 0, blockSize)) > 0)  // Read audio into our buffer, and keep a loop open while data is present.
                 {
+                    while (paused)
+                    {
+                        discordBaseClient.SetGame("Paused");
+                        Thread.Sleep(500);
+                        discordBaseClient.SetGame(songName);
+                    }
                     if (byteCount < blockSize)
                     {
                         // Incomplete Frame
                         for (int i = byteCount; i < blockSize; i++)
                             buffer[i] = 0;
                     }
-                    Console.WriteLine(discordAudioClient.Channel.Name);
                     discordAudioClient.Send(buffer, 0, blockSize); // Send the buffer to Discord
                     
-                }                
+                    
+                }      
+                if(!hasData(currentStream))
+                {
+                    AudioEndOfStream(this, new EventArgs());
+                }          
             }
-            AudioEndOfStream(this, new EventArgs());
-            await discordAudioClient.Disconnect();
+            
+            discordAudioClient.Clear();
         }
 
         private void Log(string msg)
